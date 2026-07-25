@@ -15,6 +15,7 @@ RUN apk add --no-cache \
     libjpeg-turbo-dev \
     libwebp-dev \
     zlib-dev \
+    gmp-dev \
     libxml2-dev \
     autoconf \
     gcc \
@@ -33,6 +34,7 @@ RUN docker-php-ext-configure gd \
         pdo_mysql \
         mbstring \
         bcmath \
+        gmp \
         gd
 
 # ─── Composer ───────────────────────────────────────────────────────────
