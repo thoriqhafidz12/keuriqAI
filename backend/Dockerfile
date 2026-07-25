@@ -40,8 +40,7 @@ RUN docker-php-ext-configure gd \
 # ─── Composer ───────────────────────────────────────────────────────────
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY composer.json ./
-RUN composer install --no-dev --no-interaction --no-scripts --prefer-dist --quiet \
-    && composer dump-autoload --optimize --no-dev
+RUN composer install --no-dev --no-interaction --no-scripts --prefer-dist --quiet
 
 # ─── Application ────────────────────────────────────────────────────────
 COPY . .
