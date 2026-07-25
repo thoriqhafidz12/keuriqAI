@@ -3,7 +3,6 @@ import { useTransactions } from '../hooks/useTransactions'
 import {
   formatCurrency,
   formatDate,
-  formatShortDate,
 } from '../utils/formatters'
 import { getTodayISO } from '../utils/helpers'
 import { INCOME_CATEGORIES, INCOME_SOURCES } from '../types'
@@ -18,7 +17,6 @@ import ConfirmDialog from '../components/common/ConfirmDialog'
 import Badge from '../components/common/Badge'
 import EmptyState from '../components/common/EmptyState'
 import PageHeader from '../components/common/PageHeader'
-import LoadingSpinner from '../components/common/LoadingSpinner'
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
 
@@ -140,7 +138,7 @@ export default function PenerimaanPage() {
   }, [])
 
   const openEditModal = useCallback((tx: Transaction) => {
-    setEditingId(tx.id)
+    setEditingId(String(tx.id))
     setForm({
       date: tx.date,
       amount: tx.amount.toString(),
@@ -348,7 +346,7 @@ export default function PenerimaanPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => openDeleteDialog(tx.id)}
+                      onClick={() => openDeleteDialog(String(tx.id))}
                       className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       aria-label="Hapus"
                     >

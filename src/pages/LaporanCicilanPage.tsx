@@ -26,7 +26,7 @@ export default function LaporanCicilanPage() {
   const { installments, payments, getInstallmentStats } = useInstallments()
 
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('active')
 
   useEffect(() => {

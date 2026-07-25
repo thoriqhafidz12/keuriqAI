@@ -8,8 +8,6 @@ import Input from '../components/common/Input'
 import DatePicker from '../components/common/DatePicker'
 import Modal from '../components/common/Modal'
 import PageHeader from '../components/common/PageHeader'
-import LoadingSpinner from '../components/common/LoadingSpinner'
-import EmptyState from '../components/common/EmptyState'
 
 export default function SaldoAwalPage() {
   const { getInitialBalance, addTransaction, updateTransaction } = useTransactions()

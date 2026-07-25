@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAssets } from '../hooks/useAssets'
 import { formatCurrency } from '../utils/formatters'
 import { getCurrentYear } from '../utils/helpers'
@@ -13,7 +13,7 @@ export default function LaporanPenyusutanPage() {
   const { assets, getDepreciationSchedule, getAggregatedData } = useAssets()
 
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error] = useState<string | null>(null)
   const [selectedYear, setSelectedYear] = useState(String(getCurrentYear()))
 
   useEffect(() => {

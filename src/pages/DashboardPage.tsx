@@ -1,9 +1,8 @@
-import React, { useState, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { useTransactions } from '../hooks/useTransactions'
-import { useFIFO } from '../hooks/useFIFO'
 import { useInstallments } from '../hooks/useInstallments'
 import { useAssets } from '../hooks/useAssets'
-import { formatCurrency, formatShortDate, formatMonth } from '../utils/formatters'
+import { formatCurrency, formatShortDate } from '../utils/formatters'
 import { getCurrentYear, getCurrentMonth } from '../utils/helpers'
 import Card from '../components/common/Card'
 import StatCard from '../components/common/StatCard'
@@ -165,7 +164,6 @@ export default function DashboardPage() {
     getCashflowDataForYear,
     transactions,
   } = useTransactions()
-  const { fifoResult } = useFIFO()
   const { installments } = useInstallments()
   const { getAggregatedData } = useAssets()
 

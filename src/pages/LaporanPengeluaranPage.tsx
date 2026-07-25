@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTransactions } from '../hooks/useTransactions'
 import { formatCurrency, formatShortDate } from '../utils/formatters'
 import { getTodayISO } from '../utils/helpers'
@@ -6,7 +6,6 @@ import { EXPENSE_CATEGORIES } from '../types'
 import Card from '../components/common/Card'
 import Badge from '../components/common/Badge'
 import DatePicker from '../components/common/DatePicker'
-import Button from '../components/common/Button'
 import PageHeader from '../components/common/PageHeader'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 
@@ -66,7 +65,7 @@ export default function LaporanPengeluaranPage() {
   const { transactions } = useTransactions()
 
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error] = useState<string | null>(null)
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState(getTodayISO())
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
@@ -202,7 +201,7 @@ export default function LaporanPengeluaranPage() {
                 key={cat}
                 label={cat}
                 checked={selectedCategories.size === 0 || selectedCategories.has(cat)}
-                onChange={(checked) => {
+                onChange={(_checked) => {
                   if (selectedCategories.size === 0) {
                     // If all were implicitly selected, select all except this one
                     const allButOne = new Set(EXPENSE_CATEGORIES.filter((c) => c !== cat))

@@ -5,7 +5,6 @@ import Card from '../components/common/Card'
 import Badge from '../components/common/Badge'
 import PageHeader from '../components/common/PageHeader'
 import LoadingSpinner from '../components/common/LoadingSpinner'
-import type { FundSource } from '../types'
 
 // ─── SVG Icons ───────────────────────────────────────────────────────────────
 
@@ -38,7 +37,7 @@ export default function LaporanFIFOPage() {
   const { fifoResult } = useFIFO()
 
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error] = useState<string | null>(null)
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set())
 
   useEffect(() => {
@@ -122,7 +121,7 @@ export default function LaporanFIFOPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {fifoResult.sources.map((source) => {
-                  const isExpanded = expandedSources.has(source.transactionId)
+                  const isExpanded = expandedSources.has(String(source.transactionId))
                   const hasAllocations = source.allocations.length > 0
 
                   return (
@@ -131,7 +130,7 @@ export default function LaporanFIFOPage() {
                         className={`transition-colors ${
                           hasAllocations ? 'cursor-pointer hover:bg-slate-50' : ''
                         }`}
-                        onClick={() => hasAllocations && toggleExpand(source.transactionId)}
+                        onClick={() => hasAllocations && toggleExpand(String(source.transactionId))}
                       >
                         <td className="py-2.5">
                           {hasAllocations && (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTransactions } from '../hooks/useTransactions'
 import { formatCurrency, formatShortDate, formatMonth } from '../utils/formatters'
 import { getTodayISO, getCurrentYear, getCurrentMonth } from '../utils/helpers'

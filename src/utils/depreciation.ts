@@ -39,7 +39,7 @@ export function computeDepreciationSchedule(asset: Asset): DepreciationSchedule 
   const isFullyDepreciated = currentYear > endYear || currentBookValue <= residualValue
 
   return {
-    assetId: asset.id,
+    assetId: String(asset.id),
     assetName: asset.name,
     acquisitionValue,
     residualValue,
