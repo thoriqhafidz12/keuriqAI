@@ -59,13 +59,11 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                // Aiven SSL: use system CA bundle; boolean true doesn't work on Alpine
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA') === 'true'
-                    ? '/etc/ssl/certs/ca-certificates.crt'
-                    : env('MYSQL_ATTR_SSL_CA'),
-                Mysql::ATTR_SSL_VERIFY_SERVER_CERT => env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT', false),
-            ]) : [],
+            'options' => extension_loaded('pdo_mysql') ? [
+                // Aiven SSL: use system CA bundle on Alpine
+                Mysql::ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
+                Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+            ] : [],
         ],
 
         'mariadb' => [
@@ -83,12 +81,10 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA') === 'true'
-                    ? '/etc/ssl/certs/ca-certificates.crt'
-                    : env('MYSQL_ATTR_SSL_CA'),
-                Mysql::ATTR_SSL_VERIFY_SERVER_CERT => env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT', false),
-            ]) : [],
+            'options' => extension_loaded('pdo_mysql') ? [
+                Mysql::ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
+                Mysql::ATTR_SSL_VERIFY_SERVER_CERT => false,
+            ] : [],
         ],
 
         'pgsql' => [

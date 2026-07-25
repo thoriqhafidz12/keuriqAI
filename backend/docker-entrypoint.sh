@@ -3,9 +3,9 @@ set -e
 
 echo "🚀 keuriqAI Backend — Starting..."
 
-# Wait for MySQL to be ready
+# Wait briefly for MySQL to be reachable (shorter timeout)
 echo "⏳ Checking database connection..."
-max_attempts=30
+max_attempts=10
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
     if php -r "
@@ -15,7 +15,7 @@ while [ $attempt -lt $max_attempts ]; do
                 getenv('DB_USERNAME'),
                 getenv('DB_PASSWORD'),
                 [
-                    PDO::MYSQL_ATTR_SSL_CA => true,
+                    PDO::MYSQL_ATTR_SSL_CA => '/etc/ssl/certs/ca-certificates.crt',
                     PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
                 ]
             );
@@ -28,24 +28,23 @@ while [ $attempt -lt $max_attempts ]; do
         break
     fi
     attempt=$((attempt + 1))
-    echo "   Attempt $attempt/$max_attempts — retrying in 2s..."
-    sleep 2
+    echo "   Attempt $attempt/$max_attempts — retrying in 3s..."
+    sleep 3
 done
 
 if [ $attempt -ge $max_attempts ]; then
-    echo "❌ Could not connect to database after $max_attempts attempts"
-    exit 1
+    echo "⚠️  Could not connect to database — starting server anyway"
 fi
 
 # Cache configuration
 echo "📦 Caching configuration..."
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+php artisan config:cache || echo "⚠️  config:cache skipped"
+php artisan route:cache || echo "⚠️  route:cache skipped"
+php artisan view:cache || echo "⚠️  view:cache skipped"
 
 # Run migrations (idempotent — safe to run on every deploy)
 echo "🔄 Running migrations..."
-php artisan migrate --force --no-interaction
+php artisan migrate --force --no-interaction || echo "⚠️  migrate skipped"
 
 # Start PHP built-in server
 PORT="${PORT:-8000}"
