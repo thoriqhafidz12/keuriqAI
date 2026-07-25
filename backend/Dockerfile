@@ -17,6 +17,7 @@ RUN apk add --no-cache \
     freetype-dev \
     libjpeg-turbo-dev \
     libwebp-dev \
+    zlib-dev \
     # xml
     libxml2-dev \
     # bcmath (uses system lib)
@@ -95,7 +96,33 @@ RUN docker-php-ext-configure gd \
         bcmath \
         gd \
     # Clean up build dependencies to keep image small
-    && apk del $PHPIZE_DEPS linux-headers
+    && apk del --no-cache \
+        autoconf \
+        make \
+        gcc \
+        g++ \
+        libc-dev \
+        pkgconf \
+        re2c \
+        linux-headers \
+        mariadb-dev \
+        oniguruma-dev \
+        libpng-dev \
+        freetype-dev \
+        libjpeg-turbo-dev \
+        libwebp-dev \
+        zlib-dev \
+        libxml2-dev \
+        binutils \
+        file \
+        isl \
+        libatomic \
+        libgomp \
+        libstdc++-dev \
+        mpc1 \
+        mpfr-dev \
+        gmp-dev \
+        musl-dev
 
 # Create user & group (drop root privileges)
 RUN addgroup -g 1000 -S laravel && \
