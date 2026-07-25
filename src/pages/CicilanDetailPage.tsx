@@ -18,13 +18,13 @@ import LoadingSpinner from '../components/common/LoadingSpinner'
 import TabNav from '../components/common/TabNav'
 import ExportButtons from '../components/common/ExportButtons'
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ───────────────────────────────────────────────────────────────
 
 function formatPercentage(val: number): string {
   return (val * 100).toFixed(1) + '%'
 }
 
-// ─── SVG Icons ───────────────────────────────────────────────────────────────
+// ─── SVG Icons ─────────────────────────────────────────────────────────────
 
 function TrashIcon() {
   return (
@@ -42,12 +42,42 @@ function PlusIcon() {
   )
 }
 
-// ─── CicilanDetailPage Component ────────────────────────────────────────────
+function EditIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+    </svg>
+  )
+}
+
+// ─── Form Defaults ─────────────────────────────────────────────────────────
+
+interface InstallmentForm {
+  name: string
+  totalPrice: string
+  downPayment: string
+  tenor: string
+  startDate: string
+  monthlyAmount: string
+}
+
+function installmentToForm(inst: import('../types').Installment): InstallmentForm {
+  return {
+    name: inst.name,
+    totalPrice: String(inst.totalPrice),
+    downPayment: String(inst.downPayment),
+    tenor: String(inst.tenor),
+    startDate: inst.startDate,
+    monthlyAmount: String(inst.monthlyAmount),
+  }
+}
+
+// ─── CicilanDetailPage Component ───────────────────────────────────────────
 
 export default function CicilanDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { getInstallment, getPaymentsByInstallment, getInstallmentStats, addPayment, deletePayment } = useInstallments()
+  const { getInstallment, getPaymentsByInstallment, getInstallmentStats, addPayment, deletePayment, updateInstallment, deleteInstallment } = useInstallments()
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -64,14 +94,21 @@ export default function CicilanDetailPage() {
   const [paymentErrors, setPaymentErrors] = useState<Record<string, string>>({})
   const [submittingPayment, setSubmittingPayment] = useState(false)
 
+  // Edit modal
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editForm, setEditForm] = useState<InstallmentForm>({ name: '', totalPrice: '', downPayment: '', tenor: '', startDate: '', monthlyAmount: '' })
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({})
+  const [submittingEdit, setSubmittingEdit] = useState(false)
+
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [deleteInstConfirm, setDeleteInstConfirm] = useState(false)
 
   // Active tab
   const [activeTab, setActiveTab] = useState('periode')
 
   // Fetch installment data
-  useEffect(() => {
+  const loadInstallment = useCallback(() => {
     if (!id) { setError('ID cicilan tidak ditemukan'); setLoading(false); return }
 
     try {
@@ -88,6 +125,10 @@ export default function CicilanDetailPage() {
       setLoading(false)
     }
   }, [id, getInstallment, getPaymentsByInstallment, getInstallmentStats])
+
+  useEffect(() => {
+    loadInstallment()
+  }, [loadInstallment])
 
   // Fetch periods when tab selected or after payment
   const fetchPeriods = useCallback(async () => {
@@ -165,7 +206,6 @@ export default function CicilanDetailPage() {
         refreshData()
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Gagal menambah pembayaran'
-        // Check for validation error response
         if (typeof err === 'object' && err !== null && 'response' in err) {
           const resp = (err as any).response
           if (resp?.data?.message) {
@@ -196,6 +236,69 @@ export default function CicilanDetailPage() {
     },
     [id, deletePayment, refreshData],
   )
+
+  // ─── Edit handlers ──────────────────────────────────────────────────────
+
+  const openEdit = useCallback(() => {
+    if (!installment) return
+    setEditForm(installmentToForm(installment))
+    setEditErrors({})
+    setShowEditModal(true)
+  }, [installment])
+
+  const handleEditChange = useCallback((field: string, value: string) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }))
+    setEditErrors((prev) => ({ ...prev, [field]: '' }))
+  }, [])
+
+  const handleEditSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!id || !installment) return
+
+      const errors: Record<string, string> = {}
+      if (!editForm.name.trim()) errors.name = 'Nama wajib diisi'
+      if (!editForm.totalPrice || Number(editForm.totalPrice) <= 0) errors.totalPrice = 'Total harga harus lebih dari 0'
+      if (!editForm.tenor || Number(editForm.tenor) <= 0) errors.tenor = 'Tenor harus lebih dari 0'
+      if (!editForm.startDate) errors.startDate = 'Tanggal mulai wajib diisi'
+      if (!editForm.monthlyAmount || Number(editForm.monthlyAmount) <= 0) errors.monthlyAmount = 'Nominal cicilan harus lebih dari 0'
+
+      if (Object.keys(errors).length > 0) { setEditErrors(errors); return }
+
+      setSubmittingEdit(true)
+      try {
+        await updateInstallment(id, {
+          name: editForm.name.trim(),
+          totalPrice: Number(editForm.totalPrice),
+          downPayment: Number(editForm.downPayment) || 0,
+          tenor: Number(editForm.tenor),
+          startDate: editForm.startDate,
+          monthlyAmount: Number(editForm.monthlyAmount),
+        })
+        setShowEditModal(false)
+        loadInstallment()
+        refreshData()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal mengupdate cicilan')
+      } finally {
+        setSubmittingEdit(false)
+      }
+    },
+    [id, installment, editForm, updateInstallment, loadInstallment, refreshData],
+  )
+
+  // ─── Delete installment handler ──────────────────────────────────────────
+
+  const handleDeleteInstallment = useCallback(async () => {
+    if (!id) return
+    try {
+      await deleteInstallment(id)
+      navigate('/cicilan')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menghapus cicilan')
+      setDeleteInstConfirm(false)
+    }
+  }, [id, deleteInstallment, navigate])
 
   // Report exports
   const handlePrintReport = useCallback(() => {
@@ -252,7 +355,19 @@ export default function CicilanDetailPage() {
         title={installment.name}
         backTo="/cicilan"
         action={
-          installment.status === 'active' ? (
+          <div className="flex items-center gap-2">
+            {installment.status === 'active' && (
+              <>
+                <Button variant="secondary" size="sm" onClick={openEdit}>
+                  <EditIcon />
+                  <span className="ml-1.5 hidden sm:inline">Edit</span>
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setDeleteInstConfirm(true)} className="text-red-500 hover:text-red-700">
+                  <TrashIcon />
+                  <span className="ml-1.5 hidden sm:inline">Hapus</span>
+                </Button>
+              </>
+            )}
             <Button onClick={() => {
               const firstUnpaid = periods.find(p => p.status === 'unpaid')
               if (firstUnpaid) handlePayPeriod(firstUnpaid)
@@ -265,11 +380,11 @@ export default function CicilanDetailPage() {
               <PlusIcon />
               <span className="ml-1.5">Bayar Cicilan</span>
             </Button>
-          ) : undefined
+          </div>
         }
       />
 
-      {/* ─── Progress Summary (always visible) ────────────────────────────────── */}
+      {/* ─── Progress Summary (always visible) ──────────────────────────── */}
       {stats && (
         <Card>
           <div className="flex items-start justify-between mb-4">
@@ -315,7 +430,7 @@ export default function CicilanDetailPage() {
 
       <TabNav tabs={TABS} activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* ─── Tab: Periode ────────────────────────────────────────────────────── */}
+      {/* ─── Tab: Periode ──────────────────────────────────────────────── */}
       {activeTab === 'periode' && (
         <Card>
           <h2 className="text-lg font-semibold text-slate-800 mb-4">Daftar Periode Cicilan</h2>
@@ -378,7 +493,7 @@ export default function CicilanDetailPage() {
         </Card>
       )}
 
-      {/* ─── Tab: Informasi ──────────────────────────────────────────────────── */}
+      {/* ─── Tab: Informasi ────────────────────────────────────────────── */}
       {activeTab === 'informasi' && (
         <>
           <Card>
@@ -452,7 +567,7 @@ export default function CicilanDetailPage() {
         </>
       )}
 
-      {/* ─── Tab: Laporan ────────────────────────────────────────────────────── */}
+      {/* ─── Tab: Laporan ──────────────────────────────────────────────── */}
       {activeTab === 'laporan' && (
         <Card>
           <div className="flex items-center justify-between mb-4">
@@ -508,7 +623,7 @@ export default function CicilanDetailPage() {
         </Card>
       )}
 
-      {/* ─── Payment Modal ────────────────────────────────────────────────────── */}
+      {/* ─── Payment Modal ──────────────────────────────────────────────── */}
       <Modal
         isOpen={showPaymentModal}
         onClose={resetPaymentModal}
@@ -559,13 +674,83 @@ export default function CicilanDetailPage() {
         </form>
       </Modal>
 
-      {/* ─── Delete Confirmation ──────────────────────────────────────────────── */}
+      {/* ─── Edit Modal ──────────────────────────────────────────────────── */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Cicilan"
+        size="md"
+      >
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          <Input
+            label="Nama Cicilan"
+            placeholder="Contoh: Cicilan Motor"
+            value={editForm.name}
+            onChange={(e) => handleEditChange('name', e.target.value)}
+            error={editErrors.name}
+          />
+          <Input
+            label="Total Harga"
+            type="number"
+            placeholder="10000000"
+            value={editForm.totalPrice}
+            onChange={(e) => handleEditChange('totalPrice', e.target.value)}
+            error={editErrors.totalPrice}
+          />
+          <Input
+            label="Uang Muka"
+            type="number"
+            placeholder="2000000"
+            value={editForm.downPayment}
+            onChange={(e) => handleEditChange('downPayment', e.target.value)}
+          />
+          <Input
+            label="Lama Cicilan (bulan)"
+            type="number"
+            placeholder="12"
+            value={editForm.tenor}
+            onChange={(e) => handleEditChange('tenor', e.target.value)}
+            error={editErrors.tenor}
+          />
+          <DatePicker
+            label="Tanggal Mulai"
+            value={editForm.startDate}
+            onChange={(e) => handleEditChange('startDate', e.target.value)}
+            error={editErrors.startDate}
+          />
+          <Input
+            label="Nominal Cicilan Bulanan"
+            type="number"
+            placeholder="500000"
+            value={editForm.monthlyAmount}
+            onChange={(e) => handleEditChange('monthlyAmount', e.target.value)}
+            error={editErrors.monthlyAmount}
+          />
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="ghost" type="button" onClick={() => setShowEditModal(false)}>Batal</Button>
+            <Button type="submit" isLoading={submittingEdit}>Simpan Perubahan</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ─── Delete Payment Confirmation ─────────────────────────────────── */}
       <ConfirmDialog
         isOpen={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && handleDeletePayment(deleteTarget)}
         title="Hapus Pembayaran"
         message="Apakah Anda yakin ingin menghapus pembayaran ini? Transaksi pengeluaran terkait juga akan dihapus."
+        confirmLabel="Hapus"
+        confirmVariant="danger"
+      />
+
+      {/* ─── Delete Installment Confirmation ─────────────────────────────── */}
+      <ConfirmDialog
+        isOpen={deleteInstConfirm}
+        onClose={() => setDeleteInstConfirm(false)}
+        onConfirm={handleDeleteInstallment}
+        title="Hapus Cicilan"
+        message={`Apakah Anda yakin ingin menghapus cicilan "${installment.name}"? Semua pembayaran dan transaksi pengeluaran terkait juga akan dihapus. Tindakan ini tidak dapat dibatalkan.`}
         confirmLabel="Hapus"
         confirmVariant="danger"
       />

@@ -1,4 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+
+const kasChildren = [
+  { label: 'Saldo Awal', path: '/kas/saldo-awal' },
+  { label: 'Penerimaan', path: '/kas/penerimaan' },
+  { label: 'Pengeluaran', path: '/kas/pengeluaran' },
+]
 
 const navItems = [
   {
@@ -18,6 +25,7 @@ const navItems = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
       </svg>
     ),
+    hasChildren: true,
   },
   {
     label: 'FIFO',
@@ -50,32 +58,98 @@ const navItems = [
 
 export default function MobileNav() {
   const location = useLocation()
+  const [kasOpen, setKasOpen] = useState(false)
+  const kasRef = useRef<HTMLDivElement>(null)
+
+  const isKasPage = ['/kas/saldo-awal', '/kas/penerimaan', '/kas/pengeluaran'].includes(location.pathname)
+
+  // Close submenu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (kasRef.current && !kasRef.current.contains(e.target as Node)) {
+        setKasOpen(false)
+      }
+    }
+    if (kasOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [kasOpen])
+
+  // Close submenu when navigating away from Kas pages
+  useEffect(() => {
+    if (!isKasPage) setKasOpen(false)
+  }, [location.pathname])
+
+  const handleKasTap = () => {
+    setKasOpen((prev) => !prev)
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 md:hidden">
+      {/* Kas submenu popover */}
+      {kasOpen && (
+        <div
+          ref={kasRef}
+          className="absolute bottom-full left-0 right-0 bg-white border-t border-x border-slate-200 rounded-t-xl shadow-lg mx-auto w-fit mb-1"
+        >
+          <div className="flex flex-col py-1 min-w-36">
+            {kasChildren.map((child) => {
+              const active = location.pathname === child.path
+              return (
+                <NavLink
+                  key={child.path}
+                  to={child.path}
+                  onClick={() => setKasOpen(false)}
+                  className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+                    active
+                      ? 'text-brand-700 bg-brand-50'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {child.label}
+                </NavLink>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom nav items */}
       <div className="flex items-center justify-around">
         {navItems.map((item) => {
-          // Highlight "Kas" group when on any kas page
-          const isKasPage = ['/kas/saldo-awal', '/kas/penerimaan', '/kas/pengeluaran'].includes(location.pathname)
           const isActive =
             item.path === '/'
               ? location.pathname === '/'
-              : item.path === '/kas/saldo-awal'
+              : item.hasChildren
                 ? isKasPage
                 : location.pathname.startsWith(item.path)
 
           return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={`flex flex-col items-center py-2 px-3 text-xs transition-colors ${
-                isActive ? 'text-brand-600' : 'text-slate-400'
-              }`}
-              end={item.path === '/'}
-            >
-              {item.icon}
-              <span className="mt-1">{item.label}</span>
-            </NavLink>
+            <div key={item.label} className="relative">
+              {item.hasChildren ? (
+                <button
+                  onClick={handleKasTap}
+                  className={`flex flex-col items-center py-2 px-3 text-xs transition-colors ${
+                    isActive ? 'text-brand-600' : 'text-slate-400'
+                  }`}
+                >
+                  {item.icon}
+                  <span className="mt-1">{item.label}</span>
+                </button>
+              ) : (
+                <NavLink
+                  to={item.path}
+                  className={`flex flex-col items-center py-2 px-3 text-xs transition-colors ${
+                    isActive ? 'text-brand-600' : 'text-slate-400'
+                  }`}
+                  end={item.path === '/'}
+                >
+                  {item.icon}
+                  <span className="mt-1">{item.label}</span>
+                </NavLink>
+              )}
+            </div>
           )
         })}
       </div>

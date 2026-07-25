@@ -4,6 +4,7 @@ import { useInstallments } from '../hooks/useInstallments'
 import { useAssets } from '../hooks/useAssets'
 import { formatCurrency, formatShortDate } from '../utils/formatters'
 import { getCurrentYear, getCurrentMonth } from '../utils/helpers'
+import { Link } from 'react-router-dom'
 import Card from '../components/common/Card'
 import StatCard from '../components/common/StatCard'
 import Badge from '../components/common/Badge'
@@ -129,6 +130,103 @@ function RecentIcon() {
     </svg>
   )
 }
+
+// ─── Mobile Quick Menu Icons ───────────────────────────────────────────────────
+
+function CashInIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m0 0 6.75-6.75M12 19.5l-6.75-6.75" />
+    </svg>
+  )
+}
+
+function CashOutIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 19.5v-15m0 0-6.75 6.75M12 4.5l6.75 6.75" />
+    </svg>
+  )
+}
+
+function BalanceIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </svg>
+  )
+}
+
+function ListIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+    </svg>
+  )
+}
+
+function BoxIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    </svg>
+  )
+}
+
+function ReportIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+    </svg>
+  )
+}
+
+function FIFOIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0-3.75-3.75M17.25 21 21 17.25" />
+    </svg>
+  )
+}
+
+function DepreciationIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+    </svg>
+  )
+}
+
+// ─── Mobile Quick Menu Data ─────────────────────────────────────────────────────
+
+const quickMenuItems = [
+  {
+    group: 'Kas',
+    items: [
+      { label: 'Saldo Awal', path: '/kas/saldo-awal', icon: <BalanceIcon />, color: 'bg-blue-50 text-blue-600' },
+      { label: 'Penerimaan', path: '/kas/penerimaan', icon: <CashInIcon />, color: 'bg-green-50 text-green-600' },
+      { label: 'Pengeluaran', path: '/kas/pengeluaran', icon: <CashOutIcon />, color: 'bg-red-50 text-red-600' },
+    ],
+  },
+  {
+    group: 'Lainnya',
+    items: [
+      { label: 'FIFO', path: '/fifo', icon: <FIFOIcon />, color: 'bg-purple-50 text-purple-600' },
+      { label: 'Cicilan', path: '/cicilan', icon: <ListIcon />, color: 'bg-amber-50 text-amber-600' },
+      { label: 'Aset', path: '/aset', icon: <BoxIcon />, color: 'bg-cyan-50 text-cyan-600' },
+    ],
+  },
+  {
+    group: 'Laporan',
+    items: [
+      { label: 'Saldo', path: '/laporan/saldo', icon: <BalanceIcon />, color: 'bg-blue-50 text-blue-600' },
+      { label: 'Pengeluaran', path: '/laporan/pengeluaran', icon: <ReportIcon />, color: 'bg-red-50 text-red-600' },
+      { label: 'FIFO', path: '/laporan/fifo', icon: <FIFOIcon />, color: 'bg-purple-50 text-purple-600' },
+      { label: 'Cicilan', path: '/laporan/cicilan', icon: <ListIcon />, color: 'bg-amber-50 text-amber-600' },
+      { label: 'Penyusutan', path: '/laporan/penyusutan', icon: <DepreciationIcon />, color: 'bg-teal-50 text-teal-600' },
+    ],
+  },
+]
 
 // ─── Type Badge Helper ─────────────────────────────────────────────────────────
 
@@ -269,6 +367,29 @@ export default function DashboardPage() {
           value={formatCurrency(aggData?.totalBookValue ?? 0)}
           icon={<AssetIcon />}
         />
+      </div>
+
+      {/* ── Mobile Quick Menu ───────────────────────────────────────────────── */}
+      <div className="md:hidden space-y-3">
+        {quickMenuItems.map((group) => (
+          <div key={group.group}>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-1">
+              {group.group}
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              {group.items.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex flex-col items-center gap-1 py-3 px-2 rounded-xl text-center transition-colors active:scale-95 ${item.color}`}
+                >
+                  {item.icon}
+                  <span className="text-xs font-medium leading-tight">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ── Cashflow Chart ──────────────────────────────────────────────────── */}
