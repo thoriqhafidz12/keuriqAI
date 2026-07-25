@@ -40,10 +40,16 @@ RUN docker-php-ext-configure gd \
 # ─── Composer ───────────────────────────────────────────────────────────
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY composer.json ./
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+RUN composer install --no-dev --no-interaction --no-scripts --prefer-dist --quiet \
+    && composer dump-autoload --optimize --no-dev
 
 # ─── Application ────────────────────────────────────────────────────────
 COPY . .
+
+# Generate dummy .env for artisan commands during build
+RUN echo "APP_KEY=" > .env \
+    && composer dump-autoload --optimize --no-dev \
+    && rm .env
 
 # ─── Storage (ephemeral for Railway) ────────────────────────────────────
 RUN rm -rf storage bootstrap/cache \
