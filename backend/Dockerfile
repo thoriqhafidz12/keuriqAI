@@ -3,21 +3,37 @@ FROM php:8.3-cli-alpine AS builder
 
 WORKDIR /app
 
-# System dependencies
+# System dependencies for PHP extensions
 RUN apk add --no-cache \
     curl \
     git \
     unzip \
-    libpng-dev \
+    # pdo_mysql
+    mariadb-dev \
+    # mbstring
     oniguruma-dev \
-    libxml2-dev
+    # gd
+    libpng-dev \
+    freetype-dev \
+    libjpeg-turbo-dev \
+    libwebp-dev \
+    # xml
+    libxml2-dev \
+    # bcmath (uses system lib)
+    # Standard build tools
+    linux-headers \
+    $PHPIZE_DEPS
 
-# PHP extensions
-RUN docker-php-ext-install \
-    pdo_mysql \
-    mbstring \
-    bcmath \
-    gd
+# Configure & install PHP extensions
+RUN docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
+    && docker-php-ext-install -j$(nproc) \
+        pdo_mysql \
+        mbstring \
+        bcmath \
+        gd
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -51,34 +67,54 @@ WORKDIR /app
 # Install runtime dependencies
 RUN apk add --no-cache \
     curl \
-    libpng \
+    # pdo_mysql runtime
+    mariadb-client \
+    mariadb-connector-c \
+    # mbstring runtime
     oniguruma \
+    # gd runtime
+    libpng \
+    freetype \
+    libjpeg-turbo \
+    libwebp \
+    # xml runtime
     libxml2 \
-    fcgi \
-    # For health checks
-    busybox-extras
+    # healthcheck
+    busybox-extras \
+    # PHP build tools (needed for docker-php-ext-install in runtime)
+    $PHPIZE_DEPS
 
-# PHP extensions
-RUN docker-php-ext-install \
-    pdo_mysql \
-    mbstring \
-    bcmath \
-    gd
+# Install PHP extensions (same as builder for consistency)
+RUN docker-php-ext-configure gd \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
+    && docker-php-ext-install -j$(nproc) \
+        pdo_mysql \
+        mbstring \
+        bcmath \
+        gd \
+    # Clean up build dependencies to keep image small
+    && apk del $PHPIZE_DEPS linux-headers
 
 # Create user & group (drop root privileges)
 RUN addgroup -g 1000 -S laravel && \
     adduser -u 1000 -S laravel -G laravel
 
-# Copy from builder
+# Copy from builder (vendor + app code with optimized autoloader)
 COPY --from=builder /app /app
 
 # Create storage symlink to /tmp (Railway ephemeral storage)
 RUN rm -rf /app/storage && \
-    mkdir -p /tmp/storage/app /tmp/storage/framework /tmp/storage/logs && \
-    ln -s /tmp/storage /app/storage && \
-    mkdir -p /tmp/bootstrap/cache && \
-    rm -rf /app/bootstrap/cache && \
-    ln -s /tmp/bootstrap/cache /app/bootstrap/cache
+    mkdir -p /tmp/storage/app \
+             /tmp/storage/framework/cache \
+             /tmp/storage/framework/sessions \
+             /tmp/storage/framework/views \
+             /tmp/storage/logs \
+    && ln -s /tmp/storage /app/storage \
+    && mkdir -p /tmp/bootstrap/cache \
+    && rm -rf /app/bootstrap/cache \
+    && ln -s /tmp/bootstrap/cache /app/bootstrap/cache
 
 # Set permissions
 RUN chown -R laravel:laravel /app /tmp/storage /tmp/bootstrap
