@@ -1,31 +1,30 @@
-# ─── Build Stage ───────────────────────────────────────────────────────────
-FROM php:8.3-cli-alpine AS builder
+FROM php:8.3-cli-alpine
 
 WORKDIR /app
 
-# System dependencies for PHP extensions
+# ─── System Dependencies ─────────────────────────────────────────────────
 RUN apk add --no-cache \
     curl \
     git \
     unzip \
-    # pdo_mysql
+    # PHP extension build deps
     mariadb-dev \
-    # mbstring
     oniguruma-dev \
-    # gd
     libpng-dev \
     freetype-dev \
     libjpeg-turbo-dev \
     libwebp-dev \
     zlib-dev \
-    # xml
     libxml2-dev \
-    # bcmath (uses system lib)
-    # Standard build tools
-    linux-headers \
-    $PHPIZE_DEPS
+    autoconf \
+    gcc \
+    g++ \
+    make \
+    pkgconf \
+    re2c \
+    linux-headers
 
-# Configure & install PHP extensions
+# ─── PHP Extensions ─────────────────────────────────────────────────────
 RUN docker-php-ext-configure gd \
         --with-freetype \
         --with-jpeg \
@@ -36,128 +35,35 @@ RUN docker-php-ext-configure gd \
         bcmath \
         gd
 
-# Composer
+# ─── Composer ───────────────────────────────────────────────────────────
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-# Copy composer files first (cache layer)
 COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --quiet
 
-# Install production dependencies only
-RUN composer install \
-    --no-dev \
-    --no-interaction \
-    --no-autoloader \
-    --no-scripts \
-    --prefer-dist \
-    --quiet
-
-# Copy application code
+# ─── Application ────────────────────────────────────────────────────────
 COPY . .
 
-# Generate optimized autoloader
-RUN composer dump-autoload \
-    --no-dev \
-    --optimize \
-    --classmap-authoritative
-
-# ─── Runtime Stage ────────────────────────────────────────────────────────
-FROM php:8.3-cli-alpine
-
-WORKDIR /app
-
-# Install runtime dependencies
-RUN apk add --no-cache \
-    curl \
-    # pdo_mysql runtime
-    mariadb-client \
-    mariadb-connector-c \
-    # mbstring runtime
-    oniguruma \
-    # gd runtime
-    libpng \
-    freetype \
-    libjpeg-turbo \
-    libwebp \
-    # xml runtime
-    libxml2 \
-    # healthcheck
-    busybox-extras \
-    # PHP build tools (needed for docker-php-ext-install in runtime)
-    $PHPIZE_DEPS
-
-# Install PHP extensions (same as builder for consistency)
-RUN docker-php-ext-configure gd \
-        --with-freetype \
-        --with-jpeg \
-        --with-webp \
-    && docker-php-ext-install -j$(nproc) \
-        pdo_mysql \
-        mbstring \
-        bcmath \
-        gd \
-    # Clean up build dependencies to keep image small
-    && apk del --no-cache \
-        autoconf \
-        make \
-        gcc \
-        g++ \
-        libc-dev \
-        pkgconf \
-        re2c \
-        linux-headers \
-        mariadb-dev \
-        oniguruma-dev \
-        libpng-dev \
-        freetype-dev \
-        libjpeg-turbo-dev \
-        libwebp-dev \
-        zlib-dev \
-        libxml2-dev \
-        binutils \
-        file \
-        isl \
-        libatomic \
-        libgomp \
-        libstdc++-dev \
-        mpc1 \
-        mpfr-dev \
-        gmp-dev \
-        musl-dev
-
-# Create user & group (drop root privileges)
-RUN addgroup -g 1000 -S laravel && \
-    adduser -u 1000 -S laravel -G laravel
-
-# Copy from builder (vendor + app code with optimized autoloader)
-COPY --from=builder /app /app
-
-# Create storage symlink to /tmp (Railway ephemeral storage)
-RUN rm -rf /app/storage && \
-    mkdir -p /tmp/storage/app \
+# ─── Storage (ephemeral for Railway) ────────────────────────────────────
+RUN rm -rf storage bootstrap/cache \
+    && mkdir -p /tmp/storage/app \
              /tmp/storage/framework/cache \
              /tmp/storage/framework/sessions \
              /tmp/storage/framework/views \
              /tmp/storage/logs \
-    && ln -s /tmp/storage /app/storage \
+    && ln -s /tmp/storage storage \
     && mkdir -p /tmp/bootstrap/cache \
-    && rm -rf /app/bootstrap/cache \
-    && ln -s /tmp/bootstrap/cache /app/bootstrap/cache
+    && ln -s /tmp/bootstrap/cache bootstrap/cache
 
-# Set permissions
-RUN chown -R laravel:laravel /app /tmp/storage /tmp/bootstrap
+# ─── User & Permissions ─────────────────────────────────────────────────
+RUN addgroup -g 1000 -S laravel \
+    && adduser -u 1000 -S laravel -G laravel \
+    && chown -R laravel:laravel /app /tmp/storage /tmp/bootstrap
 
-# Switch to non-root user
 USER laravel
 
-# Expose port (Railway uses $PORT env var, default to 8000)
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8000}/up || exit 1
-
-# Entrypoint script
-COPY --chown=laravel:laravel docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+# ─── Entrypoint ─────────────────────────────────────────────────────────
+COPY --chown=laravel:laravel docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
 ENTRYPOINT ["docker-entrypoint.sh"]
