@@ -60,8 +60,10 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                // Aiven SSL: 'true' means use system CA bundle, file path means use custom CA
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA') === 'true' ? true : env('MYSQL_ATTR_SSL_CA'),
+                // Aiven SSL: use system CA bundle; boolean true doesn't work on Alpine
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA') === 'true'
+                    ? '/etc/ssl/certs/ca-certificates.crt'
+                    : env('MYSQL_ATTR_SSL_CA'),
                 Mysql::ATTR_SSL_VERIFY_SERVER_CERT => env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT', false),
             ]) : [],
         ],
@@ -82,7 +84,9 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA', true),
+                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA') === 'true'
+                    ? '/etc/ssl/certs/ca-certificates.crt'
+                    : env('MYSQL_ATTR_SSL_CA'),
                 Mysql::ATTR_SSL_VERIFY_SERVER_CERT => env('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT', false),
             ]) : [],
         ],

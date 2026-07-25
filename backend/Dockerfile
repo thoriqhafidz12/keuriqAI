@@ -4,6 +4,7 @@ WORKDIR /app
 
 # ─── System Dependencies ─────────────────────────────────────────────────
 RUN apk add --no-cache \
+    ca-certificates \
     curl \
     git \
     unzip \
