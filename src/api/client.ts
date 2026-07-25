@@ -4,7 +4,9 @@ const ACCESS_TOKEN_KEY = 'keuriqAI:access_token'
 const REFRESH_TOKEN_KEY = 'keuriqAI:refresh_token'
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL}/api`
+    : '/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -73,7 +75,7 @@ apiClient.interceptors.response.use(
       try {
         // Call refresh endpoint
         const { data } = await axios.post(
-          `${import.meta.env.VITE_API_URL || '/api'}/auth/refresh`,
+          `${import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api'}/auth/refresh`,
           { refresh_token: refreshToken },
           { headers: { 'Content-Type': 'application/json' } },
         )
