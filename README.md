@@ -137,6 +137,461 @@ cd backend && php artisan serve
 
 ---
 
+## 🚀 Deployment
+
+Panduan lengkap deployment ke production. Arsitektur yang direkomendasikan:
+
+```
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+│   Frontend   │ ───▶ │   Backend    │ ───▶ │   Database   │
+│   (Vercel)   │ API  │  (Railway)   │ SQL  │ (Aiven MySQL) │
+│   React SPA  │      │  Laravel API │      │              │
+└──────────────┘      └──────────────┘      └──────────────┘
+```
+
+### Opsi Deployment
+
+| Opsi | Backend | Frontend | Database | Cocok Untuk |
+|---|---|---|---|---|
+| **A** ✅ | Railway (Docker) | Vercel | Aiven MySQL | Production, free tier tersedia |
+| **B** | Docker Compose | Nginx static | MySQL container | Self-hosted VPS |
+| **C** | VPS Manual | VPS Manual | MySQL VPS | Kontrol penuh, 1 server |
+
+---
+
+### Opsi A — Railway + Vercel (Recommended Production)
+
+#### Prasyarat
+- Akun [Railway](https://railway.app) (backend)
+- Akun [Vercel](https://vercel.com) (frontend)
+- Akun [Aiven](https://aiven.io) (managed MySQL) — atau MySQL provider lain
+
+---
+
+#### 1. Setup Database (Aiven MySQL)
+
+1. Buat akun dan login ke [Aiven Console](https://console.aiven.io)
+2. Klik **Create Service** → pilih **MySQL**
+3. Pilih plan (minimal **Hobbyist** untuk production)
+4. Setelah service siap, catat kredensial:
+   - Host, Port, Database, Username, Password
+5. Aktifkan **SSL** (Aiven menggunakan Let's Encrypt — didukung otomatis)
+
+---
+
+#### 2. Deploy Backend ke Railway
+
+Railway menggunakan `Dockerfile` di `backend/` dan file konfigurasi `railway.json`.
+
+**Langkah-langkah:**
+
+1. **Push repositori ke GitHub** *(pastikan kredensial database TIDAK ada di repo)*
+   ```bash
+   git add .
+   git commit -m "Deploy backend"
+   git push origin main
+   ```
+
+2. **Buat project di Railway**
+   - Buka [Railway Dashboard](https://railway.app/dashboard)
+   - Klik **New Project** → **Deploy from GitHub**
+   - Pilih repositori `keuriqAI`
+   - Railway akan otomatis mendeteksi `Dockerfile` di `backend/`
+
+3. **Atur Root Directory**
+   - Buka tab **Settings** pada service
+   - Set **Root Directory** ke `backend/`
+
+4. **Set Environment Variables** di Railway:
+   ```
+   APP_NAME=keuriqAI
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_KEY=base64:<GENERATE_DENGAN_php_artisan_key_generate>
+   APP_URL=https://<nama-service>.railway.app
+   FRONTEND_URL=https://<nama-project>.vercel.app
+
+   DB_CONNECTION=mysql
+   DB_HOST=<aiven-host>
+   DB_PORT=<aiven-port>
+   DB_DATABASE=defaultdb
+   DB_USERNAME=<aiven-username>
+   DB_PASSWORD=<aiven-password>
+
+   MYSQL_ATTR_SSL_CA=/etc/ssl/certs/ca-certificates.crt
+   MYSQL_ATTR_SSL_VERIFY_SERVER_CERT=false
+
+   SESSION_DRIVER=database
+   CACHE_STORE=database
+   QUEUE_CONNECTION=database
+
+   SANCTUM_STATEFUL_DOMAINS=
+   SESSION_LIFETIME=120
+   ```
+
+5. **Generate APP_KEY**:
+   ```bash
+   cd backend
+   php artisan key:generate --show
+   # Copy output dan paste ke APP_KEY di Railway
+   ```
+
+6. **Deploy** — Railway akan build Docker image dan menjalankan container. Cek log di tab **Deployments**.
+
+7. **Verifikasi backend** — buka `https://<nama-service>.railway.app/up`
+
+> **Catatan**: `docker-entrypoint.sh` akan otomatis menjalankan `php artisan migrate --force` setiap deploy. Migration bersifat idempotent — aman dijalankan berulang kali.
+
+---
+
+#### 3. Deploy Frontend ke Vercel
+
+**Langkah-langkah:**
+
+1. **Install Vercel CLI** (opsional, bisa pakai web UI):
+   ```bash
+   npm i -g vercel
+   ```
+
+2. **Deploy via Vercel Dashboard**:
+   - Buka [Vercel Dashboard](https://vercel.com/dashboard)
+   - Klik **Add New** → **Project**
+   - Import repositori `keuriqAI`
+   - Konfigurasi build:
+     - **Framework Preset**: Vite
+     - **Build Command**: `npm run build`
+     - **Output Directory**: `dist`
+     - **Root Directory**: `.` (root project)
+
+3. **Set Environment Variables** di Vercel:
+   ```
+   VITE_API_TARGET=https://<nama-service>.railway.app
+   ```
+
+4. **Deploy** — Vercel akan build dan deploy otomatis.
+
+5. **Custom Domain** (opsional) — tambahkan domain kustom di tab **Domains**.
+
+6. **Verifikasi frontend** — buka `https://<nama-project>.vercel.app`
+
+---
+
+#### 4. CORS & Keamanan
+
+Pastikan CORS sudah dikonfigurasi di backend (`backend/config/cors.php`):
+
+```php
+return [
+    'paths' => ['api/*'],
+    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:5173')],
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    'allowed_headers' => ['Content-Type', 'Authorization'],
+];
+```
+
+> **Penting**: Selalu set `FRONTEND_URL` ke URL production Vercel. Jangan gunakan `*` di production.
+
+---
+
+### Opsi B — Docker Compose (Self-hosted VPS)
+
+Untuk deployment di satu server VPS menggunakan Docker Compose.
+
+#### 1. Buat file `docker-compose.yml` di root project:
+
+```yaml
+version: "3.8"
+
+services:
+  # ─── MySQL Database ──────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: keuriqai-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret}
+      MYSQL_DATABASE: keuriq_ai
+      MYSQL_USER: keuriqai
+      MYSQL_PASSWORD: ${DB_PASSWORD:-keuriqai_secret}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Laravel Backend ─────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: keuriqai-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      APP_NAME: keuriqAI
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: ${APP_KEY}
+      APP_URL: https://keuriqai.example.com
+      FRONTEND_URL: https://keuriqai.example.com
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: keuriq_ai
+      DB_USERNAME: keuriqai
+      DB_PASSWORD: ${DB_PASSWORD:-keuriqai_secret}
+      SESSION_DRIVER: database
+      CACHE_STORE: database
+      QUEUE_CONNECTION: database
+      SANCTUM_STATEFUL_DOMAINS:
+      SESSION_LIFETIME: 120
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # ─── Nginx (Frontend Static + Reverse Proxy) ─
+  nginx:
+    image: nginx:alpine
+    container_name: keuriqai-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro  # Opsional: HTTPS
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+```
+
+#### 2. Buat file `nginx.conf`:
+
+```nginx
+server {
+    listen 80;
+    server_name keuriqai.example.com;
+
+    # Frontend static files
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # PWA & SPA — serve index.html untuk semua route
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API ke backend Laravel
+    location /api/ {
+        proxy_pass http://backend:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+#### 3. Deploy:
+
+```bash
+# Build frontend
+npm run build
+
+# Generate APP_KEY
+cd backend && php artisan key:generate --show && cd ..
+
+# Simpan APP_KEY di .env.production.docker
+echo "APP_KEY=base64:..." > .env.production.docker
+echo "DB_PASSWORD=keuriqai_secret" >> .env.production.docker
+
+# Build & jalankan semua container
+docker compose --env-file .env.production.docker up -d --build
+
+# Cek status
+docker compose ps
+docker compose logs backend
+```
+
+---
+
+### Opsi C — VPS Manual
+
+Untuk deployment manual di satu server VPS (Ubuntu/Debian).
+
+#### 1. Install dependencies:
+
+```bash
+# PHP 8.3 + extensions
+sudo apt update
+sudo apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-mysql \
+    php8.3-mbstring php8.3-bcmath php8.3-xml php8.3-gd php8.3-gmp \
+    composer nginx mysql-server nodejs npm
+
+# Atau gunakan Ondrej PPA untuk versi PHP terbaru:
+# sudo add-apt-repository ppa:ondrej/php -y
+```
+
+#### 2. Clone & setup backend:
+
+```bash
+git clone https://github.com/thoriqhafidz12/keuriqAI.git /var/www/keuriqai
+cd /var/www/keuriqai/backend
+
+cp .env.example .env
+php artisan key:generate
+
+# Edit .env dengan kredensial database production
+# DB_DATABASE=keuriq_ai
+# DB_USERNAME=keuriqai
+# DB_PASSWORD=<secure-password>
+
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+
+# Set permission
+sudo chown -R www-data:www-data storage bootstrap/cache
+```
+
+#### 3. Build frontend:
+
+```bash
+cd /var/www/keuriqai
+npm install
+npm run build
+# Output di /var/www/keuriqai/dist/
+```
+
+#### 4. Konfigurasi Nginx:
+
+```nginx
+server {
+    listen 80;
+    server_name keuriqai.example.com;
+    root /var/www/keuriqai/dist;
+
+    index index.html;
+
+    # SPA fallback
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API ke Laravel
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+#### 5. Jalankan backend sebagai systemd service:
+
+```ini
+# /etc/systemd/system/keuriqai-backend.service
+[Unit]
+Description=keuriqAI Backend
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/keuriqai/backend
+ExecStart=/usr/bin/php artisan serve --host=0.0.0.0 --port=8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now keuriqai-backend
+sudo systemctl restart nginx
+```
+
+#### 6. HTTPS dengan Certbot (Let's Encrypt):
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d keuriqai.example.com
+```
+
+---
+
+### Health Check
+
+Setelah deploy, verifikasi semua endpoint:
+
+```bash
+# Backend health check
+curl https://backend-kamu.railway.app/up
+# Response: HTTP 200
+
+# Backend API (butuh auth)
+curl https://backend-kamu.railway.app/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@keuriq.ai","password":"password"}'
+
+# Frontend
+curl -I https://frontend-kamu.vercel.app
+# Response: HTTP 200
+```
+
+---
+
+### CI/CD (Opsional)
+
+Proyek ini sudah terintegrasi dengan Git — setiap push ke `main` akan:
+
+| Platform | Trigger | Aksi |
+|---|---|---|
+| **Railway** | Push ke `main` | Auto-build Docker image & deploy backend |
+| **Vercel** | Push ke `main` | Auto-build Vite & deploy frontend |
+
+Tidak perlu setup CI/CD tambahan. Cukup push ke GitHub dan kedua platform akan otomatis deploy.
+
+---
+
+### Environment Variables Reference
+
+#### Backend (Railway / Docker)
+
+| Variable | Deskripsi | Contoh |
+|---|---|---|
+| `APP_KEY` | Laravel encryption key | `base64:...` |
+| `APP_URL` | URL backend | `https://api.example.com` |
+| `FRONTEND_URL` | URL frontend (untuk CORS) | `https://example.com` |
+| `DB_HOST` | MySQL host | `mysql-xxx.aivencloud.com` |
+| `DB_PORT` | MySQL port | `12628` |
+| `DB_DATABASE` | Nama database | `defaultdb` |
+| `DB_USERNAME` | Username database | `avnadmin` |
+| `DB_PASSWORD` | Password database | `AVNS_...` |
+| `MYSQL_ATTR_SSL_CA` | Path CA cert SSL (Aiven) | `/etc/ssl/certs/ca-certificates.crt` |
+| `MYSQL_ATTR_SSL_VERIFY_SERVER_CERT` | Verifikasi cert server | `false` |
+
+#### Frontend (Vercel)
+
+| Variable | Deskripsi | Contoh |
+|---|---|---|
+| `VITE_API_TARGET` | URL backend API | `https://api.example.com` |
+
+> ⚠️ **Peringatan Keamanan**: Jangan pernah commit file `.env` atau `.env.production` ke repositori. Gunakan environment variables di platform deployment masing-masing.
+
+---
+
 ## Akun Default
 
 Setelah menjalankan `php artisan db:seed`:
